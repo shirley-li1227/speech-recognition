@@ -307,6 +307,7 @@ export default function App() {
   const [audioPreviewUrl, setAudioPreviewUrl] = useState("");
   const [resultText, setResultText] = useState("");
   const [errorText, setErrorText] = useState("");
+  const [copySuccessText, setCopySuccessText] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string>(() => crypto.randomUUID());
@@ -722,6 +723,8 @@ export default function App() {
 
     try {
       await navigator.clipboard.writeText(resultText);
+      setCopySuccessText("复制成功");
+      window.setTimeout(() => setCopySuccessText(""), 1600);
     } catch {
       setErrorText("复制失败，请手动复制识别结果。");
     }
@@ -832,6 +835,14 @@ export default function App() {
                 placeholder="每次停止录音后会自动识别并追加到这里..."
                 className="h-80 w-full resize-y rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm leading-6 text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
               />
+              {copySuccessText && (
+                <div className="absolute -bottom-1 right-16 z-10 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50/95 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 7L9 18l-5-5" />
+                  </svg>
+                  {copySuccessText}
+                </div>
+              )}
               <button
                 type="button"
                 disabled={!resultText.trim()}
