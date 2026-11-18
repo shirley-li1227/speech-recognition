@@ -31,17 +31,30 @@ npm install
 
 ### 2) 配置环境变量
 
-复制 `.env.example` 为 `.env`，并填写你的智谱 API Key：
+API Key 只存在于服务端，不会进入浏览器产物。复制 `.dev.vars.example` 为 `.dev.vars` 并填入 Key：
+
+```bash
+cp .dev.vars.example .dev.vars
+```
 
 ```env
-VITE_ZHIPU_API_KEY=your_zhipu_api_key
-VITE_ZHIPU_STT_URL=https://open.bigmodel.cn/api/paas/v4/audio/transcriptions
-VITE_ZHIPU_STT_MODEL=glm-asr-2512
+ZHIPU_API_KEY=your_zhipu_api_key
+ZHIPU_STT_MODEL=glm-asr-2512
 ```
+
+切勿使用 `VITE_` 前缀存放密钥，这类变量会被打包进前端 JS，任何访问者都能提取。
 
 ### 3) 启动开发服务
 
+`/api/transcribe` 由 Pages Functions 提供，需同时启动两个进程：
+
 ```bash
+npm run build
+
+# 终端 1：Pages Functions（默认 8788，读取 .dev.vars）
+npx wrangler pages dev dist
+
+# 终端 2：前端（vite 已配置 /api 代理到 8788）
 npm run dev
 ```
 
@@ -57,6 +70,8 @@ npm run build
 npm run preview
 ```
 
+注意：`vite preview` 只提供静态资源，`/api` 不可用；验证接口请用 `npx wrangler pages dev dist`。
+
 ## 使用说明
 
 1. 点击录音按钮开始录音。
@@ -69,6 +84,9 @@ npm run preview
 
 ```text
 speech-recognition/
+├─ functions/
+│  └─ api/
+│     └─ transcribe.ts  # 语音识别代理
 ├─ src/
 │  ├─ App.tsx
 │  ├─ main.tsx
@@ -77,6 +95,7 @@ speech-recognition/
 ├─ index.html
 ├─ package.json
 ├─ .env.example
+├─ .dev.vars.example
 ├─ PRD.md
 └─ TECH_DESIGN.md
 ```
@@ -87,14 +106,24 @@ speech-recognition/
   - 请在浏览器地址栏站点权限中将麦克风设置为允许，然后刷新页面。
 
 - 识别失败或无结果
-  - 检查 `VITE_ZHIPU_API_KEY` 是否有效。
-  - 检查 `VITE_ZHIPU_STT_MODEL` 是否为 `glm-asr-2512` 且账号已开通权限。
-  - 检查网络与接口地址是否可访问。
+  - 检查 Cloudflare Pages 的 Secret `ZHIPU_API_KEY` 是否有效（本地开发看 `.dev.vars`）。
+  - 检查服务端变量 `ZHIPU_STT_MODEL` 是否为 `glm-asr-2512` 且账号已开通该模型。
+  - 返回 401 表示 Key 失效；返回 429 通常是余额不足或未购买 ASR 资源包。
 
 - 历史记录丢失
   - 历史数据存储在浏览器 `LocalStorage`，清理浏览器数据后会丢失。
 
 ## 说明
 
-本项目为前端直连 API 方案，`VITE_` 前缀变量会暴露到浏览器端。  
-如果用于生产环境，建议增加后端代理层来保护密钥并做请求鉴权。
+本项目已采用 Cloudflare Pages Functions 服务端代理：前端只调用同源 `/api/transcribe`，`ZHIPU_API_KEY` 以 Secret 形式保存在 Pages 项目中，不会出现在浏览器产物里。
+
+## 部署
+
+Git 推送后由 Cloudflare Pages 自动构建（构建命令 `npm run build`，输出目录 `dist`），`functions/` 目录会被自动识别为 Functions。
+
+手动部署：
+
+```bash
+npm run build
+npx wrangler pages deploy dist --project-name speech-recognition
+```

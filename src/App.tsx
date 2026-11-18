@@ -9,11 +9,17 @@ type HistoryItem = {
 const TRANSCRIBE_API = "/api/transcribe";
 const HISTORY_KEY = "speech-recognition-history";
 const MAX_RECORDING_SECONDS = 30;
-const FRIENDLY_PERMISSION_MESSAGE = "需要麦克风权限才能录音，请在浏览器设置中允许访问麦克风";
+const FRIENDLY_PERMISSION_MESSAGE =
+  "需要麦克风权限才能录音，请在浏览器设置中允许访问麦克风";
 const BLOCKED_PERMISSION_MESSAGE =
   "当前浏览器已阻止麦克风访问，无法再次弹出授权窗口。请点击地址栏旁的站点权限图标，将麦克风改为“允许”，然后刷新页面。";
 
-type MicPermissionState = "unknown" | "granted" | "denied" | "prompt" | "unsupported";
+type MicPermissionState =
+  | "unknown"
+  | "granted"
+  | "denied"
+  | "prompt"
+  | "unsupported";
 type UploadAudio = {
   blob: Blob;
   filename: string;
@@ -37,7 +43,7 @@ function sanitizeRecognitionText(text: string): string {
     /^以下是(?:该|这段)?音频(?:的)?(?:转写|识别)结果[:：]?\s*/i,
     /^转写结果[:：]?\s*/i,
     /^识别结果[:：]?\s*/i,
-    /^当然可以[，,]?\s*/i
+    /^当然可以[，,]?\s*/i,
   ];
 
   // 持续剥离前置客套语，兼容多行前缀。
@@ -66,7 +72,7 @@ function isRefusalStyleReply(text: string): boolean {
     "不过，如果你有文本内容需要帮助",
     "我无法直接处理音频",
     "cannot process audio transcription",
-    "i can't process audio"
+    "i can't process audio",
   ];
   return patterns.some((pattern) => normalized.includes(pattern.toLowerCase()));
 }
@@ -82,9 +88,11 @@ async function parseErrorMessage(response: Response): Promise<string> {
       payload?.message,
       payload?.msg,
       payload?.detail,
-      payload?.error_description
+      payload?.error_description,
     ];
-    const pickedMessage = messageCandidates.find((item) => typeof item === "string" && item.trim().length > 0);
+    const pickedMessage = messageCandidates.find(
+      (item) => typeof item === "string" && item.trim().length > 0,
+    );
     if (pickedMessage) {
       return pickedMessage;
     }
@@ -124,11 +132,19 @@ function isModelNotFoundMessage(message: string): boolean {
 
 function isWrongEndpointMessage(message: string): boolean {
   const normalized = message.toLowerCase();
-  return normalized.includes("message should not be empty") || normalized.includes("messages");
+  return (
+    normalized.includes("message should not be empty") ||
+    normalized.includes("messages")
+  );
 }
 
 function pickRecorderMimeType(): string | undefined {
-  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4",
+  ];
   return candidates.find((type) => MediaRecorder.isTypeSupported(type));
 }
 
@@ -179,11 +195,20 @@ async function blobToWav(blob: Blob): Promise<Blob> {
     writeString(36, "data");
     view.setUint32(40, samples * blockAlign, true);
 
-    const channels = Array.from({ length: channelCount }, (_, index) => audioBuffer.getChannelData(index));
+    const channels = Array.from({ length: channelCount }, (_, index) =>
+      audioBuffer.getChannelData(index),
+    );
     let offset = 44;
     for (let sampleIndex = 0; sampleIndex < samples; sampleIndex += 1) {
-      for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
-        const sample = Math.max(-1, Math.min(1, channels[channelIndex][sampleIndex]));
+      for (
+        let channelIndex = 0;
+        channelIndex < channelCount;
+        channelIndex += 1
+      ) {
+        const sample = Math.max(
+          -1,
+          Math.min(1, channels[channelIndex][sampleIndex]),
+        );
         const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
         view.setInt16(offset, intSample, true);
         offset += bytesPerSample;
@@ -310,9 +335,14 @@ export default function App() {
   const [errorText, setErrorText] = useState("");
   const [copySuccessText, setCopySuccessText] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
-  const [currentSessionId, setCurrentSessionId] = useState<string>(() => crypto.randomUUID());
-  const [micPermission, setMicPermission] = useState<MicPermissionState>("unknown");
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
+    null,
+  );
+  const [currentSessionId, setCurrentSessionId] = useState<string>(() =>
+    crypto.randomUUID(),
+  );
+  const [micPermission, setMicPermission] =
+    useState<MicPermissionState>("unknown");
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [audioMimeType, setAudioMimeType] = useState("audio/wav");
   const [isFinalizingRecording, setIsFinalizingRecording] = useState(false);
@@ -333,7 +363,7 @@ export default function App() {
 
   const selectedHistory = useMemo(
     () => history.find((item) => item.id === selectedHistoryId) ?? null,
-    [history, selectedHistoryId]
+    [history, selectedHistoryId],
   );
 
   useEffect(() => {
@@ -368,7 +398,7 @@ export default function App() {
     const syncPermission = async () => {
       try {
         permissionStatus = await navigator.permissions.query({
-          name: "microphone" as PermissionName
+          name: "microphone" as PermissionName,
         });
         if (!isMounted) {
           return;
@@ -407,7 +437,7 @@ export default function App() {
       }
       stopTracks();
     },
-    [audioPreviewUrl]
+    [audioPreviewUrl],
   );
 
   const saveHistory = (nextHistory: HistoryItem[]) => {
@@ -478,7 +508,7 @@ export default function App() {
     try {
       if (navigator.permissions?.query) {
         const status = await navigator.permissions.query({
-          name: "microphone" as PermissionName
+          name: "microphone" as PermissionName,
         });
         setMicPermission(status.state as MicPermissionState);
         if (status.state === "denied") {
@@ -552,7 +582,9 @@ export default function App() {
         const channelData = event.inputBuffer.getChannelData(0);
         pcmChunksRef.current.push(new Float32Array(channelData));
         capturedSamplesRef.current += channelData.length;
-        const elapsedBySamples = Math.floor(capturedSamplesRef.current / sampleRateRef.current);
+        const elapsedBySamples = Math.floor(
+          capturedSamplesRef.current / sampleRateRef.current,
+        );
         setRecordingSeconds(Math.min(elapsedBySamples, MAX_RECORDING_SECONDS));
       };
       recordingStartRef.current = Date.now();
@@ -561,8 +593,12 @@ export default function App() {
         if (!recordingStartRef.current) {
           return;
         }
-        const elapsedByTime = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-        const elapsedBySamples = Math.floor(capturedSamplesRef.current / sampleRateRef.current);
+        const elapsedByTime = Math.floor(
+          (Date.now() - recordingStartRef.current) / 1000,
+        );
+        const elapsedBySamples = Math.floor(
+          capturedSamplesRef.current / sampleRateRef.current,
+        );
         const elapsed = Math.max(elapsedByTime, elapsedBySamples);
         setRecordingSeconds(Math.min(elapsed, MAX_RECORDING_SECONDS));
       }, 250);
@@ -592,13 +628,19 @@ export default function App() {
     setIsRecording(false);
     void (async () => {
       try {
-        const totalSamples = pcmChunksRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
+        const totalSamples = pcmChunksRef.current.reduce(
+          (sum, chunk) => sum + chunk.length,
+          0,
+        );
         if (totalSamples < 1600) {
           setErrorText("没有检测到有效录音，请确认麦克风输入后重试。");
           return;
         }
 
-        const blob = pcmChunksToWavBlob(pcmChunksRef.current, sampleRateRef.current);
+        const blob = pcmChunksToWavBlob(
+          pcmChunksRef.current,
+          sampleRateRef.current,
+        );
         setAudioBlob(blob);
         setAudioMimeType("audio/wav");
         setAudioPreviewUrl((previousUrl) => {
@@ -640,20 +682,24 @@ export default function App() {
     setErrorText("");
 
     try {
-      const wavBlob = blobForRecognition.type.includes("wav") ? blobForRecognition : await blobToWav(blobForRecognition);
+      const wavBlob = blobForRecognition.type.includes("wav")
+        ? blobForRecognition
+        : await blobToWav(blobForRecognition);
       const formData = new FormData();
       formData.append("language", "zh");
       formData.append("file", wavBlob, "recording.wav");
 
       const response = await fetch(TRANSCRIBE_API, {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       if (!response.ok) {
         const errorMessage = await parseErrorMessage(response);
         if (isModelNotFoundMessage(errorMessage)) {
-          throw new Error("模型不存在或无权限。请确认服务端 ZHIPU_STT_MODEL 配置正确且账号已开通该模型。");
+          throw new Error(
+            "模型不存在或无权限。请确认服务端 ZHIPU_STT_MODEL 配置正确且账号已开通该模型。",
+          );
         }
         throw new Error(errorMessage);
       }
@@ -670,7 +716,9 @@ export default function App() {
       const nextText = baseText ? `${baseText}\n${stampedText}` : stampedText;
       setResultText(nextText);
 
-      const existingIndex = history.findIndex((item) => item.id === currentSessionId);
+      const existingIndex = history.findIndex(
+        (item) => item.id === currentSessionId,
+      );
       const nowIso = new Date().toISOString();
       let nextHistory: HistoryItem[];
       if (existingIndex >= 0) {
@@ -678,24 +726,29 @@ export default function App() {
           index === existingIndex
             ? {
                 ...item,
-                text: nextText
+                text: nextText,
               }
-            : item
+            : item,
         );
       } else {
         const historyItem: HistoryItem = {
           id: currentSessionId,
           text: nextText,
-          createdAt: nowIso
+          createdAt: nowIso,
         };
         nextHistory = [historyItem, ...history];
       }
       saveHistory(nextHistory);
       setSelectedHistoryId(currentSessionId);
     } catch (error) {
-      let message = error instanceof Error ? error.message : "语音识别失败，请稍后重试。";
-      if (error instanceof TypeError && error.message.toLowerCase().includes("fetch")) {
-        message = "请求识别服务失败，请检查网络连接，以及浏览器是否拦截了跨域请求。";
+      let message =
+        error instanceof Error ? error.message : "语音识别失败，请稍后重试。";
+      if (
+        error instanceof TypeError &&
+        error.message.toLowerCase().includes("fetch")
+      ) {
+        message =
+          "请求识别服务失败，请检查网络连接，以及浏览器是否拦截了跨域请求。";
       }
       setErrorText(message);
     } finally {
@@ -745,15 +798,22 @@ export default function App() {
     setResultText("");
   };
 
-  const remainingSeconds = Math.max(0, MAX_RECORDING_SECONDS - recordingSeconds);
+  const remainingSeconds = Math.max(
+    0,
+    MAX_RECORDING_SECONDS - recordingSeconds,
+  );
   const showPermissionCard = micPermission === "denied" && !isRecording;
   const showInlineError = Boolean(errorText) && !showPermissionCard;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-3 py-6 text-slate-900 sm:px-4 sm:py-10">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Snow的语音笔记</h1>
-        <p className="mt-2 text-sm text-slate-600">录音、自动识别、会话沉淀，一页完成</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          Snow的语音笔记
+        </h1>
+        <p className="mt-2 text-sm text-slate-600">
+          录音、自动识别、会话沉淀，一页完成
+        </p>
       </div>
       <div className="grid w-full gap-4 sm:gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="panel min-w-0 rounded-3xl p-4 sm:p-6">
@@ -766,7 +826,9 @@ export default function App() {
           </button>
           <h2 className="text-base font-semibold text-slate-800">历史会话</h2>
           {history.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500">暂无历史记录，识别成功后会自动保存。</p>
+            <p className="mt-4 text-sm text-slate-500">
+              暂无历史记录，识别成功后会自动保存。
+            </p>
           ) : (
             <ul className="mt-4 space-y-2">
               {history.map((item) => (
@@ -780,8 +842,12 @@ export default function App() {
                         : "soft-divider bg-white/80 hover:bg-slate-50"
                     }`}
                   >
-                    <p className="font-semibold text-slate-700">{formatDate(item.createdAt)}</p>
-                    <p className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-slate-500">{item.text}</p>
+                    <p className="font-semibold text-slate-700">
+                      {formatDate(item.createdAt)}
+                    </p>
+                    <p className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-slate-500">
+                      {item.text}
+                    </p>
                   </button>
                   <button
                     type="button"
@@ -790,7 +856,13 @@ export default function App() {
                     title="删除会话"
                     className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M3 6h18" />
                       <path d="M8 6V4h8v2" />
                       <path d="M19 6l-1 14H6L5 6" />
@@ -806,14 +878,24 @@ export default function App() {
 
         <section className="panel min-w-0 rounded-3xl p-4 sm:p-8">
           <header className="text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">当前会话</h2>
-            <p className="mt-2 text-sm text-slate-600">单次会话支持多段录音，停止后自动识别并追加结果</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+              当前会话
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              单次会话支持多段录音，停止后自动识别并追加结果
+            </p>
           </header>
 
           <section className="mt-8">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-slate-700">识别结果（可编辑）</h2>
-              {selectedHistory && <p className="text-xs text-slate-500">查看中：{formatDate(selectedHistory.createdAt)}</p>}
+              <h2 className="text-sm font-semibold text-slate-700">
+                识别结果（可编辑）
+              </h2>
+              {selectedHistory && (
+                <p className="text-xs text-slate-500">
+                  查看中：{formatDate(selectedHistory.createdAt)}
+                </p>
+              )}
             </div>
             <div className="relative pb-12">
               <textarea
@@ -824,7 +906,13 @@ export default function App() {
               />
               {copySuccessText && (
                 <div className="absolute -bottom-1 right-16 z-10 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50/95 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M20 7L9 18l-5-5" />
                   </svg>
                   {copySuccessText}
@@ -854,7 +942,13 @@ export default function App() {
                     : "bg-gradient-to-br from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600"
               }`}
             >
-              <span className="relative z-10">{isRecording ? "停止" : isFinalizingRecording ? "处理中" : "录音"}</span>
+              <span className="relative z-10">
+                {isRecording
+                  ? "停止"
+                  : isFinalizingRecording
+                    ? "处理中"
+                    : "录音"}
+              </span>
             </button>
 
             {showPermissionCard && (
@@ -872,7 +966,8 @@ export default function App() {
 
             {isRecording && (
               <div className="w-full rounded-xl border border-red-100 bg-red-50 px-4 py-2 text-sm font-medium text-red-600">
-                已录制 {recordingSeconds}s / 剩余 {remainingSeconds}s（最长 {MAX_RECORDING_SECONDS}s，到时自动停止）
+                已录制 {recordingSeconds}s / 剩余 {remainingSeconds}s（最长{" "}
+                {MAX_RECORDING_SECONDS}s，到时自动停止）
               </div>
             )}
 
@@ -883,7 +978,9 @@ export default function App() {
               </div>
             )}
 
-            {showInlineError && <p className="w-full text-sm text-red-500">{errorText}</p>}
+            {showInlineError && (
+              <p className="w-full text-sm text-red-500">{errorText}</p>
+            )}
           </div>
         </section>
       </div>
