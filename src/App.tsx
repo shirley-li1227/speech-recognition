@@ -6,6 +6,7 @@ type HistoryItem = {
   createdAt: string;
 };
 
+const TRANSCRIBE_API = "/api/transcribe";
 const HISTORY_KEY = "speech-recognition-history";
 const MAX_RECORDING_SECONDS = 30;
 const FRIENDLY_PERMISSION_MESSAGE = "需要麦克风权限才能录音，请在浏览器设置中允许访问麦克风";
@@ -635,38 +636,24 @@ export default function App() {
       return;
     }
 
-    const apiKey = import.meta.env.VITE_ZHIPU_API_KEY;
-    const configuredModel = import.meta.env.VITE_ZHIPU_STT_MODEL ?? "glm-asr-2512";
-    const endpoint =
-      import.meta.env.VITE_ZHIPU_STT_URL ?? "https://open.bigmodel.cn/api/paas/v4/audio/transcriptions";
-
-    if (!apiKey) {
-      setErrorText("缺少 API Key。请在 .env 文件中设置 VITE_ZHIPU_API_KEY。");
-      return;
-    }
-
     setIsRecognizing(true);
     setErrorText("");
 
     try {
       const wavBlob = blobForRecognition.type.includes("wav") ? blobForRecognition : await blobToWav(blobForRecognition);
       const formData = new FormData();
-      formData.append("model", configuredModel);
       formData.append("language", "zh");
       formData.append("file", wavBlob, "recording.wav");
 
-      const response = await fetch(endpoint, {
+      const response = await fetch(TRANSCRIBE_API, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`
-        },
         body: formData
       });
 
       if (!response.ok) {
         const errorMessage = await parseErrorMessage(response);
         if (isModelNotFoundMessage(errorMessage)) {
-          throw new Error("模型不存在或无权限。请确认 .env 中 VITE_ZHIPU_STT_MODEL=glm-asr-2512 且账号已开通该模型。");
+          throw new Error("模型不存在或无权限。请确认服务端 ZHIPU_STT_MODEL 配置正确且账号已开通该模型。");
         }
         throw new Error(errorMessage);
       }
